@@ -19,10 +19,13 @@
 
 
   <!-- control -->
-  <depend repo_name="control-controller-demo-control-task" type="binary">control-controller-demo-control-task</depend>
+  <depend repo_name="control-controller-debug-info-control-task" type="binary">control-controller-debug-info-control-task</depend>
+  <depend repo_name="control-controller-antislip-control-task" type="binary">control-controller-antislip-control-task</depend>
   <depend repo_name="control-controller-lat-based-lqr-controller" type="binary">control-controller-lat-based-lqr-controller</depend>
+  <depend repo_name="control-controller-lat-based-lqr-plus-controller" type="binary">control-controller-lat-based-lqr-plus-controller</depend>
   <depend repo_name="control-controller-lon-based-pid-controller" type="binary">control-controller-lon-based-pid-controller</depend>
-  <depend repo_name="control-controller-mpc-controller" type="binary">control-controller-mpc-controller</depend>
+  <depend repo_name="control-controller-lon-based-pid-plus-controller" type="binary">control-controller-lon-based-pid-plus-controller</depend>
+  <depend repo_name="control-task-base-extend" type="binary">control-task-base-extend</depend>
   <depend repo_name="control" type="binary">control</depend>
 
   <!-- dreamview && monitor -->
@@ -47,6 +50,30 @@
 
   <!-- planning -->
   <depend repo_name="planning" type="binary">planning</depend>
+  <depend repo_name="planning-base" type="binary">planning-base</depend>
+  <depend repo_name="planning-open-space" type="binary">planning-open-space</depend>
+  <depend repo_name="planning-park-data-center" type="binary">planning-park-data-center</depend>
+  <depend repo_name="planning-interface-base" type="binary">planning-interface-base</depend>
+  <depend repo_name="planning-scenario-free-space" type="binary">planning-scenario-free-space</depend>
+  <depend repo_name="planning-scenario-lane-follow-park" type="binary">planning-scenario-lane-follow-park</depend>
+  <depend repo_name="planning-scenario-large-curvature" type="binary">planning-scenario-large-curvature</depend>
+  <depend repo_name="planning-scenario-square" type="binary">planning-scenario-square</depend>
+  <depend repo_name="planning-scenario-valet-parking-park" type="binary">planning-scenario-valet-parking-park</depend>
+  <depend repo_name="planning-task-smooth-stop-trajectory-fallback" type="binary">planning-task-smooth-stop-trajectory-fallback</depend>
+  <depend repo_name="planning-task-lane-borrow-path-generic" type="binary">planning-task-lane-borrow-path-generic</depend>
+  <depend repo_name="planning-task-lane-change-path-generic" type="binary">planning-task-lane-change-path-generic</depend>
+  <depend repo_name="planning-task-obstacle-nudge-decider" type="binary">planning-task-obstacle-nudge-decider</depend>
+  <depend repo_name="planning-task-open-space-fallback-decider-park" type="binary">planning-task-open-space-fallback-decider-park</depend>
+  <depend repo_name="planning-task-open-space-path-planning" type="binary">planning-task-open-space-path-planning</depend>
+  <depend repo_name="planning-task-open-space-replan-decider" type="binary">planning-task-open-space-replan-decider</depend>
+  <depend repo_name="planning-task-open-space-roi-decider-park" type="binary">planning-task-open-space-roi-decider-park</depend>
+  <depend repo_name="planning-task-open-space-trajectory-optimizer-park" type="binary">planning-task-open-space-trajectory-optimizer-park</depend>
+  <depend repo_name="planning-task-open-space-trajectory-post-process" type="binary">planning-task-open-space-trajectory-post-process</depend>
+  <depend repo_name="planning-task-reverse-path" type="binary">planning-task-reverse-path</depend>
+  <depend repo_name="planning-task-reverse-speed" type="binary">planning-task-reverse-speed</depend>
+  <depend repo_name="planning-task-smooth-stop-trajectory-fallback" type="binary">planning-task-smooth-stop-trajectory-fallback</depend>
+  <depend repo_name="planning-task-square-path" type="binary">planning-task-square-path</depend>
+  <depend repo_name="planning-traffic-rules-speed-setting" type="binary">planning-traffic-rules-speed-setting</depend>
 
   <!-- prediction -->
   <depend repo_name="prediction" type="binary">prediction</depend>
