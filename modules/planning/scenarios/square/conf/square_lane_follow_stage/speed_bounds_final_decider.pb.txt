@@ -1,0 +1,13 @@
+total_time: 7.0
+boundary_buffer: 0.25
+max_centric_acceleration_limit: 0.6
+minimal_kappa: 0.00001
+point_extension: 0.0
+lowest_speed: 1.0
+collision_safety_range: 1.2
+static_obs_nudge_speed_ratio: 0.45
+dynamic_obs_nudge_speed_ratio: 0.7
+enable_nudge_slowdown: true
+lane_change_obstacle_nudge_l_buffer: 0.6
+max_trajectory_len: 1000.0
+hard_speed_limit: 8.0

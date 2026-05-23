@@ -1,0 +1,6 @@
+acc_weight: 2.0
+jerk_weight: 8.0
+kappa_penalty_weight: 500.0
+ref_s_weight: 1.0
+ref_v_weight: 8.0
+follow_distance_buffer: 1.0
