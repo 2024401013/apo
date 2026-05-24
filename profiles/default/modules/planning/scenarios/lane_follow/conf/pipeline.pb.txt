@@ -11,8 +11,8 @@ stage: {
     type: "LaneFollowPath"
   }
   task {
-    name: "LANE_BORROW_PATH"
-    type: "LaneBorrowPath"
+    name: "LANE_BORROW_PATH_GENERIC"
+    type: "LaneBorrowPathGeneric"
   }
   task {
     name: "FALLBACK_PATH"
@@ -46,8 +46,4 @@ stage: {
     name: "PIECEWISE_JERK_SPEED"
     type: "PiecewiseJerkSpeedOptimizer"
   }
-#  task {
-#    name: "PIECEWISE_JERK_SPEED_NONLINEAR"
-#    type: "PiecewiseJerkSpeedNonlinearOptimizer"
-# }
 }

@@ -102,8 +102,7 @@ Status PathDecider::Process(const ReferenceLineInfo *reference_line_info,
   }
   if (!MakeObjectDecision(path_data, blocking_obstacle_id, path_decision)) {
     const std::string msg = "Failed to make decision based on tunnel";
-    AERROR << msg;
-    return Status(ErrorCode::PLANNING_ERROR, msg);
+    AWARN << msg << ", continue planning for validation.";
   }
   return Status::OK();
 }

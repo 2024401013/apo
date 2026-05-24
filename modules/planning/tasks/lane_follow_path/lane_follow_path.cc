@@ -163,13 +163,52 @@ bool LaneFollowPath::DecidePathBounds(std::vector<PathBoundary>* boundary) {
   }
 
   ADEBUG << "Completed generating path boundaries.";
-  if (init_sl_state_.second[0] > path_bound[0].l_upper.l ||
-      init_sl_state_.second[0] < path_bound[0].l_lower.l) {
+
+  // S-curve contest debug:
+  // In narrow S-curve sections, the ADC initial lateral position may be only
+  // a few centimeters outside the first path boundary due to boundary jitter.
+  // Do not fail path generation immediately in that case. Instead, slightly
+  // expand the first several boundary points to include the current init_l.
+  const double kInitLBoundaryTolerance = 0.10;     // 10 cm
+  const double kInitLBoundaryExtraMargin = 0.02;   // 2 cm
+  const size_t kNumInitBoundaryRelaxPoints = 5;    // about first 2~3 meters
+
+  const double init_l = init_sl_state_.second[0];
+  const double lower_l = path_bound[0].l_lower.l;
+  const double upper_l = path_bound[0].l_upper.l;
+
+  if (init_l > upper_l + kInitLBoundaryTolerance ||
+      init_l < lower_l - kInitLBoundaryTolerance) {
     AINFO << "not in self lane maybe lane borrow or out of road. init l : "
-          << init_sl_state_.second[0] << ", path_bound l: [ "
-          << path_bound[0].l_lower.l << "," << path_bound[0].l_upper.l << " ]";
+          << init_l << ", path_bound l: [ " << lower_l << "," << upper_l
+          << " ], tolerance: " << kInitLBoundaryTolerance;
     return false;
   }
+
+  if (init_l < lower_l) {
+    AWARN << "[S_CURVE_DEBUG] init_l slightly below path lower bound, relax "
+          << "initial path bound. init_l: " << init_l
+          << ", original lower_l: " << lower_l;
+
+    const size_t relax_num =
+        std::min(kNumInitBoundaryRelaxPoints, path_bound.size());
+    for (size_t i = 0; i < relax_num; ++i) {
+      path_bound[i].l_lower.l =
+          std::min(path_bound[i].l_lower.l, init_l - kInitLBoundaryExtraMargin);
+    }
+  } else if (init_l > upper_l) {
+    AWARN << "[S_CURVE_DEBUG] init_l slightly above path upper bound, relax "
+          << "initial path bound. init_l: " << init_l
+          << ", original upper_l: " << upper_l;
+
+    const size_t relax_num =
+        std::min(kNumInitBoundaryRelaxPoints, path_bound.size());
+    for (size_t i = 0; i < relax_num; ++i) {
+      path_bound[i].l_upper.l =
+          std::max(path_bound[i].l_upper.l, init_l + kInitLBoundaryExtraMargin);
+    }
+  }
+
   // std::vector<std::pair<double, double>> regular_path_bound_pair;
   // for (size_t i = 0; i < path_bound.size(); ++i) {
   //   regular_path_bound_pair.emplace_back(std::get<1>(path_bound[i]),

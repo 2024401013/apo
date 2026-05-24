@@ -1,5 +1,5 @@
 is_extend_lane_bounds_to_include_adc: true
-extend_buffer: 0.6
+extend_buffer: 1.0
 
 path_optimizer_config {
   l_weight: 40.0
