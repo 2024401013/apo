@@ -72,6 +72,21 @@ Status STBoundaryMapper::ComputeSTBoundary(PathDecision* path_decision) const {
     return Status(ErrorCode::PLANNING_ERROR,
                   "Fail to get params because of too few path points");
   }
+  const auto& st_mapper_obstacles = path_decision->obstacles().Items();
+  AINFO << "STBoundaryMapper obstacle snapshot. obstacle_count: "
+        << st_mapper_obstacles.size();
+  for (const auto* obstacle : st_mapper_obstacles) {
+    const auto& sl_boundary = obstacle->PerceptionSLBoundary();
+    AINFO << "STBoundaryMapper obstacle snapshot item. id: "
+          << obstacle->Id()
+          << ", is_virtual: " << obstacle->IsVirtual()
+          << ", is_static: " << obstacle->IsStatic()
+          << ", is_ignore: " << obstacle->IsIgnore()
+          << ", sl_start_s: " << sl_boundary.start_s()
+          << ", sl_end_s: " << sl_boundary.end_s()
+          << ", sl_start_l: " << sl_boundary.start_l()
+          << ", sl_end_l: " << sl_boundary.end_l();
+  }
 
   // Go through every obstacle.
   Obstacle* stop_obstacle = nullptr;
@@ -82,23 +97,26 @@ Status STBoundaryMapper::ComputeSTBoundary(PathDecision* path_decision) const {
     ACHECK(ptr_obstacle != nullptr);
 
     // If no longitudinal decision has been made, then plot it onto ST-graph.
-    // S-curve contest debug:
-    // For static non-virtual obstacles that already have a lateral nudge decision,
-    // the path layer has decided to avoid them laterally.
-    // Mapping them again into ST graph may create near-field STOP walls and make
-    // the vehicle stop even though a nudge path exists.
     if (!ptr_obstacle->HasLongitudinalDecision()) {
+      constexpr double kMinNudgeStaticObstacleStartS = 5.0;
+      constexpr double kMinNudgeStaticObstacleLateralDistance = 1.6;
+      const auto& sl = ptr_obstacle->PerceptionSLBoundary();
+      const double min_abs_l =
+          std::min(std::fabs(sl.start_l()), std::fabs(sl.end_l()));
       if (ptr_obstacle->IsStatic() && !ptr_obstacle->IsVirtual() &&
           ptr_obstacle->HasLateralDecision() &&
-          ptr_obstacle->LateralDecision().has_nudge()) {
+          ptr_obstacle->LateralDecision().has_nudge() &&
+          sl.start_s() > kMinNudgeStaticObstacleStartS &&
+          min_abs_l > kMinNudgeStaticObstacleLateralDistance) {
         ObjectDecisionType ignore_decision;
         ignore_decision.mutable_ignore();
         ptr_obstacle->AddLongitudinalDecision(
             "STBoundaryMapper/ignore_lateral_nudge_static_obstacle",
             ignore_decision);
 
-        AINFO << "[S_CURVE_DEBUG] skip STBoundary for lateral-nudge static obstacle: "
-              << ptr_obstacle->Id();
+        AINFO << "Skip STBoundary for lateral-nudge static obstacle: "
+              << ptr_obstacle->Id() << ", start_s: " << sl.start_s()
+              << ", min_abs_l: " << min_abs_l;
         continue;
       }
 

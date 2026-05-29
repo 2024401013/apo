@@ -15,6 +15,7 @@
  *****************************************************************************/
 
 #include "modules/planning/tasks/fallback_path/fallback_path.h"
+#include <limits>
 #include <memory>
 #include <string>
 #include <utility>
@@ -30,6 +31,96 @@ namespace planning {
 
 using apollo::common::Status;
 using apollo::common::VehicleConfigHelper;
+
+namespace {
+
+struct PathBoundSummary {
+  double first_lower = 0.0;
+  double first_upper = 0.0;
+  double first_width = 0.0;
+  size_t min_width_index = 0;
+  double min_width_s = 0.0;
+  double min_width_lower = 0.0;
+  double min_width_upper = 0.0;
+  double min_width = std::numeric_limits<double>::infinity();
+  bool has_invalid_bound = false;
+  size_t first_invalid_index = 0;
+  double first_invalid_s = 0.0;
+  double first_invalid_lower = 0.0;
+  double first_invalid_upper = 0.0;
+  bool init_l_in_first_bound = false;
+};
+
+PathBoundSummary BuildPathBoundSummary(const PathBoundary& path_boundary,
+                                       const double init_l) {
+  PathBoundSummary summary;
+  const auto& boundary = path_boundary.boundary();
+  if (boundary.empty()) {
+    return summary;
+  }
+
+  summary.first_lower = boundary.front().first;
+  summary.first_upper = boundary.front().second;
+  summary.first_width = summary.first_upper - summary.first_lower;
+  summary.init_l_in_first_bound =
+      init_l >= summary.first_lower && init_l <= summary.first_upper;
+
+  for (size_t i = 0; i < boundary.size(); ++i) {
+    const double lower = boundary[i].first;
+    const double upper = boundary[i].second;
+    const double width = upper - lower;
+    const double s = static_cast<double>(i) * path_boundary.delta_s() +
+                     path_boundary.start_s();
+    if (width < summary.min_width) {
+      summary.min_width = width;
+      summary.min_width_index = i;
+      summary.min_width_s = s;
+      summary.min_width_lower = lower;
+      summary.min_width_upper = upper;
+    }
+    if (lower > upper && !summary.has_invalid_bound) {
+      summary.has_invalid_bound = true;
+      summary.first_invalid_index = i;
+      summary.first_invalid_s = s;
+      summary.first_invalid_lower = lower;
+      summary.first_invalid_upper = upper;
+    }
+  }
+  return summary;
+}
+
+void LogPathOptimizerSummary(const std::string& event,
+                             const PathBoundary& path_boundary,
+                             const SLState& init_state,
+                             const PathBoundSummary& summary) {
+  AINFO << "[FALLBACK_PATH_OPT_DEBUG] " << event
+        << ", label: " << path_boundary.label()
+        << ", path_bound_size: " << path_boundary.boundary().size()
+        << ", blocking_obstacle_id: " << path_boundary.blocking_obstacle_id()
+        << ", init_l: " << init_state.second[0]
+        << ", init_dl: " << init_state.second[1]
+        << ", init_ddl: " << init_state.second[2]
+        << ", first_lower_l: " << summary.first_lower
+        << ", first_upper_l: " << summary.first_upper
+        << ", first_width: " << summary.first_width
+        << ", min_width_index: " << summary.min_width_index
+        << ", min_width_s: " << summary.min_width_s
+        << ", min_width_lower_l: " << summary.min_width_lower
+        << ", min_width_upper_l: " << summary.min_width_upper
+        << ", min_width: " << summary.min_width
+        << ", has_invalid_bound: " << summary.has_invalid_bound
+        << ", init_l_in_first_bound: " << summary.init_l_in_first_bound;
+  if (summary.has_invalid_bound) {
+    AINFO << "[FALLBACK_PATH_OPT_DEBUG] first invalid bound, label: "
+          << path_boundary.label()
+          << ", index: " << summary.first_invalid_index
+          << ", s: " << summary.first_invalid_s
+          << ", lower_l: " << summary.first_invalid_lower
+          << ", upper_l: " << summary.first_invalid_upper;
+  }
+}
+
+}  // namespace
 
 bool FallbackPath::Init(const std::string& config_dir, const std::string& name,
                         const std::shared_ptr<DependencyInjector>& injector) {
@@ -112,9 +203,16 @@ bool FallbackPath::OptimizePath(
     std::vector<double> ref_l(path_boundary_size, 0);
     std::vector<double> weight_ref_l(path_boundary_size,
                                      config.path_reference_l_weight());
+    const PathBoundSummary path_bound_summary =
+        BuildPathBoundSummary(path_boundary, init_sl_state_.second[0]);
+    LogPathOptimizerSummary("before optimizer", path_boundary, init_sl_state_,
+                            path_bound_summary);
     bool res_opt = PathOptimizerUtil::OptimizePath(
         init_sl_state_, end_state, ref_l, weight_ref_l, path_boundary,
         ddl_bounds, jerk_bound, config, &opt_l, &opt_dl, &opt_ddl);
+    LogPathOptimizerSummary(res_opt ? "after optimizer success"
+                                    : "after optimizer failed",
+                            path_boundary, init_sl_state_, path_bound_summary);
     if (res_opt) {
       auto frenet_frame_path = PathOptimizerUtil::ToPiecewiseJerkPath(
           opt_l, opt_dl, opt_ddl, path_boundary.delta_s(),

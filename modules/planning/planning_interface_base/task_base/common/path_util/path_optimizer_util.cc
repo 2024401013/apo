@@ -16,6 +16,7 @@
 
 #include "modules/planning/planning_interface_base/task_base/common/path_util/path_optimizer_util.h"
 
+#include <limits>
 #include <utility>
 #include <vector>
 
@@ -28,6 +29,68 @@
 #include "modules/planning/planning_base/math/piecewise_jerk/piecewise_jerk_path_problem.h"
 namespace apollo {
 namespace planning {
+
+namespace {
+
+void LogPathBoundarySummary(const PathBoundary& path_boundary,
+                            const SLState& init_state) {
+  const auto& boundary = path_boundary.boundary();
+  double min_width = std::numeric_limits<double>::infinity();
+  double min_width_s = path_boundary.start_s();
+  double min_width_lower = 0.0;
+  double min_width_upper = 0.0;
+  size_t inverted_count = 0;
+  size_t first_inverted_index = boundary.size();
+  double first_inverted_s = 0.0;
+  double first_inverted_lower = 0.0;
+  double first_inverted_upper = 0.0;
+
+  for (size_t i = 0; i < boundary.size(); ++i) {
+    const double lower = boundary[i].first;
+    const double upper = boundary[i].second;
+    const double width = upper - lower;
+    const double s = static_cast<double>(i) * path_boundary.delta_s() +
+                     path_boundary.start_s();
+    if (width < min_width) {
+      min_width = width;
+      min_width_s = s;
+      min_width_lower = lower;
+      min_width_upper = upper;
+    }
+    if (lower > upper) {
+      if (inverted_count == 0) {
+        first_inverted_index = i;
+        first_inverted_s = s;
+        first_inverted_lower = lower;
+        first_inverted_upper = upper;
+      }
+      ++inverted_count;
+    }
+  }
+
+  AINFO << "[PATH_OPT_INFEASIBLE_DEBUG] label: " << path_boundary.label()
+        << ", blocking_obstacle_id: " << path_boundary.blocking_obstacle_id()
+        << ", point_count: " << boundary.size()
+        << ", start_s: " << path_boundary.start_s()
+        << ", delta_s: " << path_boundary.delta_s()
+        << ", init_l: " << init_state.second[0]
+        << ", init_dl: " << init_state.second[1]
+        << ", init_ddl: " << init_state.second[2]
+        << ", inverted_count: " << inverted_count
+        << ", min_width_s: " << min_width_s
+        << ", min_width_lower: " << min_width_lower
+        << ", min_width_upper: " << min_width_upper
+        << ", min_width: " << min_width;
+  if (inverted_count > 0) {
+    AINFO << "[PATH_OPT_INFEASIBLE_DEBUG] first inverted bound. label: "
+          << path_boundary.label() << ", index: " << first_inverted_index
+          << ", s: " << first_inverted_s
+          << ", lower: " << first_inverted_lower
+          << ", upper: " << first_inverted_upper;
+  }
+}
+
+}  // namespace
 
 FrenetFramePath PathOptimizerUtil::ToPiecewiseJerkPath(
     const std::vector<double>& x, const std::vector<double>& dx,
@@ -184,6 +247,7 @@ bool PathOptimizerUtil::OptimizePath(
 
   if (!success) {
     AERROR << path_boundary.label() << "piecewise jerk path optimizer failed";
+    LogPathBoundarySummary(path_boundary, init_state);
     AINFO << "init s(" << init_state.first[0] << "," << init_state.first[1]
           << "," << init_state.first[2] << ") l (" << init_state.second[0]
           << "," << init_state.second[1] << "," << init_state.second[2];

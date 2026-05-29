@@ -102,7 +102,12 @@ Status PathDecider::Process(const ReferenceLineInfo *reference_line_info,
   }
   if (!MakeObjectDecision(path_data, blocking_obstacle_id, path_decision)) {
     const std::string msg = "Failed to make decision based on tunnel";
-    AWARN << msg << ", continue planning for validation.";
+    if (path_data.frenet_frame_path().empty() &&
+        path_data.discretized_path().empty()) {
+      AERROR << msg << ", path_data is empty, return PLANNING_ERROR.";
+      return Status(ErrorCode::PLANNING_ERROR, msg);
+    }
+    AWARN << msg << ", continue planning with non-empty path_data.";
   }
   return Status::OK();
 }

@@ -17,6 +17,7 @@
 #include "modules/planning/tasks/lane_follow_path/lane_follow_path.h"
 
 #include <algorithm>
+#include <limits>
 #include <memory>
 #include <string>
 #include <utility>
@@ -33,6 +34,96 @@ namespace planning {
 
 using apollo::common::Status;
 using apollo::common::VehicleConfigHelper;
+
+namespace {
+
+struct PathBoundSummary {
+  double first_lower = 0.0;
+  double first_upper = 0.0;
+  double first_width = 0.0;
+  size_t min_width_index = 0;
+  double min_width_s = 0.0;
+  double min_width_lower = 0.0;
+  double min_width_upper = 0.0;
+  double min_width = std::numeric_limits<double>::infinity();
+  bool has_invalid_bound = false;
+  size_t first_invalid_index = 0;
+  double first_invalid_s = 0.0;
+  double first_invalid_lower = 0.0;
+  double first_invalid_upper = 0.0;
+  bool init_l_in_first_bound = false;
+};
+
+PathBoundSummary BuildPathBoundSummary(const PathBoundary& path_boundary,
+                                       const double init_l) {
+  PathBoundSummary summary;
+  const auto& boundary = path_boundary.boundary();
+  if (boundary.empty()) {
+    return summary;
+  }
+
+  summary.first_lower = boundary.front().first;
+  summary.first_upper = boundary.front().second;
+  summary.first_width = summary.first_upper - summary.first_lower;
+  summary.init_l_in_first_bound =
+      init_l >= summary.first_lower && init_l <= summary.first_upper;
+
+  for (size_t i = 0; i < boundary.size(); ++i) {
+    const double lower = boundary[i].first;
+    const double upper = boundary[i].second;
+    const double width = upper - lower;
+    const double s = static_cast<double>(i) * path_boundary.delta_s() +
+                     path_boundary.start_s();
+    if (width < summary.min_width) {
+      summary.min_width = width;
+      summary.min_width_index = i;
+      summary.min_width_s = s;
+      summary.min_width_lower = lower;
+      summary.min_width_upper = upper;
+    }
+    if (lower > upper && !summary.has_invalid_bound) {
+      summary.has_invalid_bound = true;
+      summary.first_invalid_index = i;
+      summary.first_invalid_s = s;
+      summary.first_invalid_lower = lower;
+      summary.first_invalid_upper = upper;
+    }
+  }
+  return summary;
+}
+
+void LogPathOptimizerSummary(const std::string& event,
+                             const PathBoundary& path_boundary,
+                             const SLState& init_state,
+                             const PathBoundSummary& summary) {
+  AINFO << "[LANE_FOLLOW_PATH_OPT_DEBUG] " << event
+        << ", label: " << path_boundary.label()
+        << ", path_bound_size: " << path_boundary.boundary().size()
+        << ", blocking_obstacle_id: " << path_boundary.blocking_obstacle_id()
+        << ", init_l: " << init_state.second[0]
+        << ", init_dl: " << init_state.second[1]
+        << ", init_ddl: " << init_state.second[2]
+        << ", first_lower_l: " << summary.first_lower
+        << ", first_upper_l: " << summary.first_upper
+        << ", first_width: " << summary.first_width
+        << ", min_width_index: " << summary.min_width_index
+        << ", min_width_s: " << summary.min_width_s
+        << ", min_width_lower_l: " << summary.min_width_lower
+        << ", min_width_upper_l: " << summary.min_width_upper
+        << ", min_width: " << summary.min_width
+        << ", has_invalid_bound: " << summary.has_invalid_bound
+        << ", init_l_in_first_bound: " << summary.init_l_in_first_bound;
+  if (summary.has_invalid_bound) {
+    AINFO << "[LANE_FOLLOW_PATH_OPT_DEBUG] first invalid bound, label: "
+          << path_boundary.label()
+          << ", index: " << summary.first_invalid_index
+          << ", s: " << summary.first_invalid_s
+          << ", lower_l: " << summary.first_invalid_lower
+          << ", upper_l: " << summary.first_invalid_upper;
+  }
+}
+
+}  // namespace
 
 bool LaneFollowPath::Init(const std::string& config_dir,
                           const std::string& name,
@@ -169,29 +260,41 @@ bool LaneFollowPath::DecidePathBounds(std::vector<PathBoundary>* boundary) {
   // a few centimeters outside the first path boundary due to boundary jitter.
   // Do not fail path generation immediately in that case. Instead, slightly
   // expand the first several boundary points to include the current init_l.
-  const double kInitLBoundaryTolerance = 0.10;     // 10 cm
-  const double kInitLBoundaryExtraMargin = 0.02;   // 2 cm
-  const size_t kNumInitBoundaryRelaxPoints = 5;    // about first 2~3 meters
+  const double kInitLBoundaryTolerance = 0.07;     // 7 cm
+  const double kInitLBoundaryExtraMargin = 0.01;   // 1 cm
+  const double kInitLBoundaryMinMargin = 0.05;      // 5 cm
+  const size_t kNumInitBoundaryRelaxPoints = 3;
 
   const double init_l = init_sl_state_.second[0];
   const double lower_l = path_bound[0].l_lower.l;
   const double upper_l = path_bound[0].l_upper.l;
+  const double lower_margin = init_l - lower_l;
+  const double upper_margin = upper_l - init_l;
+  const double lower_exceed_distance =
+      init_l < lower_l ? lower_l - init_l : 0.0;
+  const double upper_exceed_distance =
+      init_l > upper_l ? init_l - upper_l : 0.0;
+  const size_t relax_num =
+      std::min(kNumInitBoundaryRelaxPoints, path_bound.size());
 
   if (init_l > upper_l + kInitLBoundaryTolerance ||
       init_l < lower_l - kInitLBoundaryTolerance) {
     AINFO << "not in self lane maybe lane borrow or out of road. init l : "
           << init_l << ", path_bound l: [ " << lower_l << "," << upper_l
-          << " ], tolerance: " << kInitLBoundaryTolerance;
+          << " ], tolerance: " << kInitLBoundaryTolerance
+          << ", lower_exceed_distance: " << lower_exceed_distance
+          << ", upper_exceed_distance: " << upper_exceed_distance
+          << ", relax_num: " << relax_num;
     return false;
   }
 
   if (init_l < lower_l) {
     AWARN << "[S_CURVE_DEBUG] init_l slightly below path lower bound, relax "
           << "initial path bound. init_l: " << init_l
-          << ", original lower_l: " << lower_l;
+          << ", lower_l: " << lower_l << ", upper_l: " << upper_l
+          << ", exceed_distance: " << lower_exceed_distance
+          << ", relax_num: " << relax_num;
 
-    const size_t relax_num =
-        std::min(kNumInitBoundaryRelaxPoints, path_bound.size());
     for (size_t i = 0; i < relax_num; ++i) {
       path_bound[i].l_lower.l =
           std::min(path_bound[i].l_lower.l, init_l - kInitLBoundaryExtraMargin);
@@ -199,13 +302,35 @@ bool LaneFollowPath::DecidePathBounds(std::vector<PathBoundary>* boundary) {
   } else if (init_l > upper_l) {
     AWARN << "[S_CURVE_DEBUG] init_l slightly above path upper bound, relax "
           << "initial path bound. init_l: " << init_l
-          << ", original upper_l: " << upper_l;
+          << ", lower_l: " << lower_l << ", upper_l: " << upper_l
+          << ", exceed_distance: " << upper_exceed_distance
+          << ", relax_num: " << relax_num;
 
-    const size_t relax_num =
-        std::min(kNumInitBoundaryRelaxPoints, path_bound.size());
     for (size_t i = 0; i < relax_num; ++i) {
       path_bound[i].l_upper.l =
           std::max(path_bound[i].l_upper.l, init_l + kInitLBoundaryExtraMargin);
+    }
+  } else if (upper_margin < kInitLBoundaryMinMargin) {
+    AWARN << "[S_CURVE_DEBUG] init_l near path upper bound, relax initial "
+          << "path bound. init_l: " << init_l << ", lower_l: " << lower_l
+          << ", upper_l: " << upper_l << ", upper_margin: " << upper_margin
+          << ", lower_margin: " << lower_margin
+          << ", relax_num: " << relax_num;
+
+    for (size_t i = 0; i < relax_num; ++i) {
+      path_bound[i].l_upper.l =
+          std::max(path_bound[i].l_upper.l, init_l + kInitLBoundaryMinMargin);
+    }
+  } else if (lower_margin < kInitLBoundaryMinMargin) {
+    AWARN << "[S_CURVE_DEBUG] init_l near path lower bound, relax initial "
+          << "path bound. init_l: " << init_l << ", lower_l: " << lower_l
+          << ", upper_l: " << upper_l << ", upper_margin: " << upper_margin
+          << ", lower_margin: " << lower_margin
+          << ", relax_num: " << relax_num;
+
+    for (size_t i = 0; i < relax_num; ++i) {
+      path_bound[i].l_lower.l =
+          std::min(path_bound[i].l_lower.l, init_l - kInitLBoundaryMinMargin);
     }
   }
 
@@ -250,9 +375,16 @@ bool LaneFollowPath::OptimizePath(
 
     PathOptimizerUtil::UpdatePathRefWithBound(
         path_boundary, config.path_reference_l_weight(), &ref_l, &weight_ref_l);
+    const PathBoundSummary path_bound_summary =
+        BuildPathBoundSummary(path_boundary, init_sl_state_.second[0]);
+    LogPathOptimizerSummary("before optimizer", path_boundary, init_sl_state_,
+                            path_bound_summary);
     bool res_opt = PathOptimizerUtil::OptimizePath(
         init_sl_state_, end_state, ref_l, weight_ref_l, path_boundary,
         ddl_bounds, jerk_bound, config, &opt_l, &opt_dl, &opt_ddl);
+    LogPathOptimizerSummary(res_opt ? "after optimizer success"
+                                    : "after optimizer failed",
+                            path_boundary, init_sl_state_, path_bound_summary);
     if (res_opt) {
       auto frenet_frame_path = PathOptimizerUtil::ToPiecewiseJerkPath(
           opt_l, opt_dl, opt_ddl, path_boundary.delta_s(),

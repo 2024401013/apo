@@ -397,7 +397,20 @@ bool LaneBorrowPathGeneric::GetBoundaryFromNudgeDecision(
     bool is_use_nudge_key_points = FLAGS_enable_nudge_decider && nudge_info.is_enable()
             && nudge_info.extra_nudge_key_points().size() > 1 && nudge_info.extra_nudge_key_points().at(0).size() > 1;
     if (!is_use_nudge_key_points) {
-        AINFO << "GetBoundaryFromNudgeDecision, not use nudge key points";
+        const size_t key_point_group_num = nudge_info.extra_nudge_key_points().size();
+        const size_t left_key_point_num =
+                key_point_group_num > 0 ? nudge_info.extra_nudge_key_points().at(0).size() : 0;
+        const size_t right_key_point_num =
+                key_point_group_num > 1 ? nudge_info.extra_nudge_key_points().at(1).size() : 0;
+        AINFO << "GetBoundaryFromNudgeDecision, not use nudge key points. "
+              << "enable_nudge_decider: " << FLAGS_enable_nudge_decider
+              << ", nudge_info_enable: " << nudge_info.is_enable()
+              << ", key_point_group_num: " << key_point_group_num
+              << ", left_key_point_num: " << left_key_point_num
+              << ", right_key_point_num: " << right_key_point_num
+              << ", block_sl_polygons_size: " << nudge_info.block_sl_polygons().size()
+              << ", update_ids_size: " << nudge_info.update_ids().size()
+              << ", tracking_obs_size: " << nudge_info.tracking_nudge_obs_info().size();
         return true;
     }
 
@@ -602,6 +615,7 @@ bool LaneBorrowPathGeneric::IsSidePassableObstacle(const ReferenceLineInfo& refe
 
 bool LaneBorrowPathGeneric::IsEnableNudge(const ReferenceLineInfo& reference_line_info) {
     if (!FLAGS_enable_nudge_decider) {
+        AINFO << "LaneBorrowPathGeneric::IsEnableNudge, nudge decider disabled by flag.";
         return true;
     }
     // const auto& lane_follow_status =
@@ -611,6 +625,21 @@ bool LaneBorrowPathGeneric::IsEnableNudge(const ReferenceLineInfo& reference_lin
     //   need lane borrow"; return false;
     // }
     const auto& nudge_info = ParkDataCenter::Instance()->current_nudge_info(reference_line_info.key());
+    const size_t key_point_group_num = nudge_info.extra_nudge_key_points().size();
+    const size_t left_key_point_num =
+            key_point_group_num > 0 ? nudge_info.extra_nudge_key_points().at(0).size() : 0;
+    const size_t right_key_point_num =
+            key_point_group_num > 1 ? nudge_info.extra_nudge_key_points().at(1).size() : 0;
+    AINFO << "LaneBorrowPathGeneric::IsEnableNudge check. reference_line_key: "
+          << reference_line_info.key()
+          << ", enable_nudge_decider: " << FLAGS_enable_nudge_decider
+          << ", nudge_info_enable: " << nudge_info.is_enable()
+          << ", key_point_group_num: " << key_point_group_num
+          << ", left_key_point_num: " << left_key_point_num
+          << ", right_key_point_num: " << right_key_point_num
+          << ", block_sl_polygons_size: " << nudge_info.block_sl_polygons().size()
+          << ", update_ids_size: " << nudge_info.update_ids().size()
+          << ", tracking_obs_size: " << nudge_info.tracking_nudge_obs_info().size();
     if (nudge_info.is_enable() && nudge_info.extra_nudge_key_points().size() > 1) {
         AINFO << "LaneBorrowPathGeneric::IsEnableNudge, Lane Nudge is enable";
         return true;

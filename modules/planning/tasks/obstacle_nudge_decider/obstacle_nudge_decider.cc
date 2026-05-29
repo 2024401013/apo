@@ -62,6 +62,26 @@ Status ObstacleNudgeDecider::Process(Frame *frame, ReferenceLineInfo *reference_
         AINFO << "Update history nudge info";
     }
     AINFO << "Task process: ObstacleNudgeDecider start.";
+    if (reference_line_info != nullptr &&
+        reference_line_info->path_decision() != nullptr) {
+        const auto& obstacles =
+                reference_line_info->path_decision()->obstacles().Items();
+        AINFO << "ObstacleNudgeDecider obstacle snapshot. reference_line_key: "
+              << reference_line_info->key()
+              << ", obstacle_count: " << obstacles.size();
+        for (const auto* obstacle : obstacles) {
+            const auto& sl_boundary = obstacle->PerceptionSLBoundary();
+            AINFO << "ObstacleNudgeDecider obstacle snapshot item. id: "
+                  << obstacle->Id()
+                  << ", is_virtual: " << obstacle->IsVirtual()
+                  << ", is_static: " << obstacle->IsStatic()
+                  << ", is_ignore: " << obstacle->IsIgnore()
+                  << ", sl_start_s: " << sl_boundary.start_s()
+                  << ", sl_end_s: " << sl_boundary.end_s()
+                  << ", sl_start_l: " << sl_boundary.start_l()
+                  << ", sl_end_l: " << sl_boundary.end_l();
+        }
+    }
     if (!FLAGS_enable_nudge_decider || !config_.enbale_nugde_static_obs() || nullptr == reference_line_info
         || reference_line_info->path_reusable()) {
         AINFO << "path reusable" << reference_line_info->path_reusable() << ",skip";

@@ -58,6 +58,13 @@ void NudgeCalculation::BuildNudgeDecisionWithObs(
             + config_.min_forward_check_dis();
 
     dis2end_ = reference_line_info->SDistanceToDestination();
+    AINFO << "NudgeCalculation: begin. reference_line_key: "
+          << reference_line_info->key()
+          << ", obstacle_size: "
+          << reference_line_info->path_decision()->obstacles().Items().size()
+          << ", ego_v: " << ego_v
+          << ", check_forward_dis: " << check_forward_dis_
+          << ", dis2end: " << dis2end_;
 
     if (nullptr != last_frame && nullptr != last_frame->DriveReferenceLineInfo()
         && ParkDataCenter::Instance()->GetLastFrameNudgeTrackInfo(
@@ -130,10 +137,17 @@ void NudgeCalculation::BuildNudgeDecisionWithObs(
     if (IsProbEnoughToNudge(nudge_info, is_merge_obs_polygon)) {
         CalcNudgeExtraSpace(reference_line_info, nudge_info);
         nudge_info->set_enable(true);
-        AINFO << "NudgeCalculation: Enable Nudge";
+        AINFO << "NudgeCalculation: Enable Nudge. key_point_group_num: "
+              << nudge_info->extra_nudge_key_points().size();
     } else {
         nudge_info->set_enable(false);
-        AINFO << "NudgeCalculation: Not Enable Nudge";
+        AINFO << "NudgeCalculation: Not Enable Nudge. update_ids_size: "
+              << nudge_info->update_ids().size()
+              << ", block_sl_polygons_size: "
+              << nudge_info->block_sl_polygons().size()
+              << ", tracking_obs_size: "
+              << nudge_info->tracking_nudge_obs_info().size()
+              << ", is_merge_obs_polygon: " << is_merge_obs_polygon;
     }
     // TODO(fengzhiqi): nudge safety check
 }
@@ -159,7 +173,13 @@ void NudgeCalculation::BuildStaticTrackingObs(
 
     bool is_obs_passable = CalcObsRemainSpace(reference_line_info, obstacle, &remain_nudge_space);
     AINFO << "NudgeCalculation: BuildStaticTrackingObs: [ " << obs_id << " ], is passable: " << is_obs_passable
-          << ", obs_is_all_on_lane: " << obs_is_all_on_lane;
+          << ", obs_is_all_on_lane: " << obs_is_all_on_lane
+          << ", obs_far_from_lane_boundary: " << obs_far_from_lane_boundary
+          << ", left_lane_remain: " << remain_nudge_space.left_lane_remain
+          << ", right_lane_remain: " << remain_nudge_space.right_lane_remain
+          << ", left_road_remain: " << remain_nudge_space.left_road_remain
+          << ", right_road_remain: " << remain_nudge_space.right_road_remain
+          << ", obs_type: " << obstacle.Perception().type();
     auto* tracking_nudge_obs_info = nudge_info->mutable_tracking_nudge_obs_info();
     auto iter = tracking_nudge_obs_info->find(obs_id);
     if (iter != tracking_nudge_obs_info->end()) {
@@ -182,6 +202,12 @@ void NudgeCalculation::BuildStaticTrackingObs(
                     &new_track_obs_info, obstacle, is_obs_passable, remain_nudge_space, obs_is_all_on_lane);
             nudge_info->mutable_update_ids()->insert(obs_id);
             tracking_nudge_obs_info->emplace(obs_id, new_track_obs_info);
+        } else {
+            AINFO << "NudgeCalculation: static obstacle not tracked for nudge: [ "
+                  << obs_id << " ], is_passable: " << is_obs_passable
+                  << ", obs_is_all_on_lane: " << obs_is_all_on_lane
+                  << ", obs_far_from_lane_boundary: " << obs_far_from_lane_boundary
+                  << ", obs_type: " << obstacle.Perception().type();
         }
     }
 }
@@ -286,31 +312,51 @@ bool NudgeCalculation::IsWithinNudgeScopeObstacle(
         const Obstacle& obstacle) {
     // Obstacle should be non-virtual.
     if (obstacle.IsVirtual()) {
-        ADEBUG << "obstacle IsVirtual";
+        AINFO << "NudgeCalculation: obstacle [ " << obstacle.Id()
+              << " ] out of nudge scope: virtual obstacle";
         return false;
     }
     // Obstacle should not have ignore decision.
     if (obstacle.HasLongitudinalDecision() && obstacle.HasLateralDecision() && obstacle.IsIgnore()) {
-        ADEBUG << "obstacle IsIgnore";
+        AINFO << "NudgeCalculation: obstacle [ " << obstacle.Id()
+              << " ] out of nudge scope: already ignore decision";
         return false;
     }
     // Obstacle should not be moving obstacle.
     if (!obstacle.IsStatic() || obstacle.speed() > FLAGS_static_obstacle_speed_threshold) {
-        ADEBUG << "obstacle Is not Static";
+        AINFO << "NudgeCalculation: obstacle [ " << obstacle.Id()
+              << " ] out of nudge scope: not static. is_static: "
+              << obstacle.IsStatic() << ", speed: " << obstacle.speed()
+              << ", static_speed_threshold: "
+              << FLAGS_static_obstacle_speed_threshold;
         return false;
     }
     // Obstacle should in ROI
-    if (obstacle.PerceptionSLBoundary().start_s() - adc_boundary_.end_s() > dis2end_
-        || obstacle.PerceptionSLBoundary().start_s() - adc_boundary_.end_s() > check_forward_dis_
-        || obstacle.PerceptionSLBoundary().end_s() - adc_boundary_.start_s() < 0) {
-        ADEBUG << "obstacle not in ROI";
+    const auto& sl_boundary = obstacle.PerceptionSLBoundary();
+    const double obstacle_start_s_to_adc_end =
+            sl_boundary.start_s() - adc_boundary_.end_s();
+    const double obstacle_end_s_to_adc_start =
+            sl_boundary.end_s() - adc_boundary_.start_s();
+    if (obstacle_start_s_to_adc_end > dis2end_
+        || obstacle_start_s_to_adc_end > check_forward_dis_
+        || obstacle_end_s_to_adc_start < 0) {
+        AINFO << "NudgeCalculation: obstacle [ " << obstacle.Id()
+              << " ] out of nudge scope: not in ROI. start_s_to_adc_end: "
+              << obstacle_start_s_to_adc_end
+              << ", end_s_to_adc_start: " << obstacle_end_s_to_adc_start
+              << ", check_forward_dis: " << check_forward_dis_
+              << ", dis2end: " << dis2end_;
         return false;
     }
 
     // check obstacle is in the lane
-    bool obs_on_lane = reference_line_info->reference_line().IsOnLane(obstacle.PerceptionSLBoundary());
+    bool obs_on_lane = reference_line_info->reference_line().IsOnLane(sl_boundary);
     if (!obs_on_lane) {
-        ADEBUG << "obstacle is out of lane width";
+        AINFO << "NudgeCalculation: obstacle [ " << obstacle.Id()
+              << " ] out of nudge scope: out of lane. sl start_s: "
+              << sl_boundary.start_s() << ", end_s: " << sl_boundary.end_s()
+              << ", start_l: " << sl_boundary.start_l()
+              << ", end_l: " << sl_boundary.end_l();
         return false;
     }
     return true;
