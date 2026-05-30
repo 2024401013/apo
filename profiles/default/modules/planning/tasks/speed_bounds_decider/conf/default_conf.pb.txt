@@ -1,6 +1,6 @@
 total_time: 7.0
 boundary_buffer: 0.25
-max_centric_acceleration_limit: 0.6
+max_centric_acceleration_limit: 0.7
 minimal_kappa: 0.00001
 point_extension: 0.0
 lowest_speed: 1.0

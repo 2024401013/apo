@@ -93,30 +93,30 @@ void LogPathOptimizerSummary(const std::string& event,
                              const PathBoundary& path_boundary,
                              const SLState& init_state,
                              const PathBoundSummary& summary) {
-  AINFO << "[FALLBACK_PATH_OPT_DEBUG] " << event
-        << ", label: " << path_boundary.label()
-        << ", path_bound_size: " << path_boundary.boundary().size()
-        << ", blocking_obstacle_id: " << path_boundary.blocking_obstacle_id()
-        << ", init_l: " << init_state.second[0]
-        << ", init_dl: " << init_state.second[1]
-        << ", init_ddl: " << init_state.second[2]
-        << ", first_lower_l: " << summary.first_lower
-        << ", first_upper_l: " << summary.first_upper
-        << ", first_width: " << summary.first_width
-        << ", min_width_index: " << summary.min_width_index
-        << ", min_width_s: " << summary.min_width_s
-        << ", min_width_lower_l: " << summary.min_width_lower
-        << ", min_width_upper_l: " << summary.min_width_upper
-        << ", min_width: " << summary.min_width
-        << ", has_invalid_bound: " << summary.has_invalid_bound
-        << ", init_l_in_first_bound: " << summary.init_l_in_first_bound;
+  ADEBUG << "[FALLBACK_PATH_OPT_DEBUG] " << event
+         << ", label: " << path_boundary.label()
+         << ", path_bound_size: " << path_boundary.boundary().size()
+         << ", blocking_obstacle_id: " << path_boundary.blocking_obstacle_id()
+         << ", init_l: " << init_state.second[0]
+         << ", init_dl: " << init_state.second[1]
+         << ", init_ddl: " << init_state.second[2]
+         << ", first_lower_l: " << summary.first_lower
+         << ", first_upper_l: " << summary.first_upper
+         << ", first_width: " << summary.first_width
+         << ", min_width_index: " << summary.min_width_index
+         << ", min_width_s: " << summary.min_width_s
+         << ", min_width_lower_l: " << summary.min_width_lower
+         << ", min_width_upper_l: " << summary.min_width_upper
+         << ", min_width: " << summary.min_width
+         << ", has_invalid_bound: " << summary.has_invalid_bound
+         << ", init_l_in_first_bound: " << summary.init_l_in_first_bound;
   if (summary.has_invalid_bound) {
-    AINFO << "[FALLBACK_PATH_OPT_DEBUG] first invalid bound, label: "
-          << path_boundary.label()
-          << ", index: " << summary.first_invalid_index
-          << ", s: " << summary.first_invalid_s
-          << ", lower_l: " << summary.first_invalid_lower
-          << ", upper_l: " << summary.first_invalid_upper;
+    ADEBUG << "[FALLBACK_PATH_OPT_DEBUG] first invalid bound, label: "
+           << path_boundary.label()
+           << ", index: " << summary.first_invalid_index
+           << ", s: " << summary.first_invalid_s
+           << ", lower_l: " << summary.first_invalid_lower
+           << ", upper_l: " << summary.first_invalid_upper;
   }
 }
 

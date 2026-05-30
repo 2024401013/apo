@@ -99,7 +99,7 @@ Status STBoundaryMapper::ComputeSTBoundary(PathDecision* path_decision) const {
     // If no longitudinal decision has been made, then plot it onto ST-graph.
     if (!ptr_obstacle->HasLongitudinalDecision()) {
       constexpr double kMinNudgeStaticObstacleStartS = 5.0;
-      constexpr double kMinNudgeStaticObstacleLateralDistance = 1.6;
+      constexpr double kMinNudgeStaticObstacleLateralDistance = 1.25;
       const auto& sl = ptr_obstacle->PerceptionSLBoundary();
       const double min_abs_l =
           std::min(std::fabs(sl.start_l()), std::fabs(sl.end_l()));
@@ -114,9 +114,9 @@ Status STBoundaryMapper::ComputeSTBoundary(PathDecision* path_decision) const {
             "STBoundaryMapper/ignore_lateral_nudge_static_obstacle",
             ignore_decision);
 
-        AINFO << "Skip STBoundary for lateral-nudge static obstacle: "
-              << ptr_obstacle->Id() << ", start_s: " << sl.start_s()
-              << ", min_abs_l: " << min_abs_l;
+        ADEBUG << "Skip STBoundary for lateral-nudge static obstacle: "
+               << ptr_obstacle->Id() << ", start_s: " << sl.start_s()
+               << ", min_abs_l: " << min_abs_l;
         continue;
       }
 
@@ -293,24 +293,24 @@ bool STBoundaryMapper::GetOverlapBoundaryPoints(
           //                 << "], at: " << curr_point_on_path.DebugString();
 
           /////////////////////////////// test start //////////////////////////////
-          AINFO << "[S_CURVE_DEBUG] obstacle id: " << obstacle.Id()
-                << ", is_static: " << obstacle.IsStatic()
-                << ", is_virtual: " << obstacle.IsVirtual()
-                << ", has_lateral_decision: " << obstacle.HasLateralDecision()
-                << ", has_longitudinal_decision: " << obstacle.HasLongitudinalDecision();
+          ADEBUG << "[S_CURVE_DEBUG] obstacle id: " << obstacle.Id()
+                 << ", is_static: " << obstacle.IsStatic()
+                 << ", is_virtual: " << obstacle.IsVirtual()
+                 << ", has_lateral_decision: " << obstacle.HasLateralDecision()
+                 << ", has_longitudinal_decision: " << obstacle.HasLongitudinalDecision();
 
           if (obstacle.HasLateralDecision()) {
-            AINFO << "[S_CURVE_DEBUG] lateral decision: "
-                  << obstacle.LateralDecision().DebugString();
+            ADEBUG << "[S_CURVE_DEBUG] lateral decision: "
+                   << obstacle.LateralDecision().DebugString();
           }
 
           if (obstacle.HasLongitudinalDecision()) {
-            AINFO << "[S_CURVE_DEBUG] longitudinal decision: "
-                  << obstacle.LongitudinalDecision().DebugString();
+            ADEBUG << "[S_CURVE_DEBUG] longitudinal decision: "
+                   << obstacle.LongitudinalDecision().DebugString();
           }
 
-          AINFO << "[S_CURVE_DEBUG] perception SL: "
-                << obstacle.PerceptionSLBoundary().DebugString();
+          ADEBUG << "[S_CURVE_DEBUG] perception SL: "
+                 << obstacle.PerceptionSLBoundary().DebugString();
           //////////////////////////// over /////////////////////////////////////////
 
           // It is an unrotated rectangle appearing on the ST-graph.

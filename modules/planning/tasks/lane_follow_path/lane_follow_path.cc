@@ -96,30 +96,30 @@ void LogPathOptimizerSummary(const std::string& event,
                              const PathBoundary& path_boundary,
                              const SLState& init_state,
                              const PathBoundSummary& summary) {
-  AINFO << "[LANE_FOLLOW_PATH_OPT_DEBUG] " << event
-        << ", label: " << path_boundary.label()
-        << ", path_bound_size: " << path_boundary.boundary().size()
-        << ", blocking_obstacle_id: " << path_boundary.blocking_obstacle_id()
-        << ", init_l: " << init_state.second[0]
-        << ", init_dl: " << init_state.second[1]
-        << ", init_ddl: " << init_state.second[2]
-        << ", first_lower_l: " << summary.first_lower
-        << ", first_upper_l: " << summary.first_upper
-        << ", first_width: " << summary.first_width
-        << ", min_width_index: " << summary.min_width_index
-        << ", min_width_s: " << summary.min_width_s
-        << ", min_width_lower_l: " << summary.min_width_lower
-        << ", min_width_upper_l: " << summary.min_width_upper
-        << ", min_width: " << summary.min_width
-        << ", has_invalid_bound: " << summary.has_invalid_bound
-        << ", init_l_in_first_bound: " << summary.init_l_in_first_bound;
+  ADEBUG << "[LANE_FOLLOW_PATH_OPT_DEBUG] " << event
+         << ", label: " << path_boundary.label()
+         << ", path_bound_size: " << path_boundary.boundary().size()
+         << ", blocking_obstacle_id: " << path_boundary.blocking_obstacle_id()
+         << ", init_l: " << init_state.second[0]
+         << ", init_dl: " << init_state.second[1]
+         << ", init_ddl: " << init_state.second[2]
+         << ", first_lower_l: " << summary.first_lower
+         << ", first_upper_l: " << summary.first_upper
+         << ", first_width: " << summary.first_width
+         << ", min_width_index: " << summary.min_width_index
+         << ", min_width_s: " << summary.min_width_s
+         << ", min_width_lower_l: " << summary.min_width_lower
+         << ", min_width_upper_l: " << summary.min_width_upper
+         << ", min_width: " << summary.min_width
+         << ", has_invalid_bound: " << summary.has_invalid_bound
+         << ", init_l_in_first_bound: " << summary.init_l_in_first_bound;
   if (summary.has_invalid_bound) {
-    AINFO << "[LANE_FOLLOW_PATH_OPT_DEBUG] first invalid bound, label: "
-          << path_boundary.label()
-          << ", index: " << summary.first_invalid_index
-          << ", s: " << summary.first_invalid_s
-          << ", lower_l: " << summary.first_invalid_lower
-          << ", upper_l: " << summary.first_invalid_upper;
+    ADEBUG << "[LANE_FOLLOW_PATH_OPT_DEBUG] first invalid bound, label: "
+           << path_boundary.label()
+           << ", index: " << summary.first_invalid_index
+           << ", s: " << summary.first_invalid_s
+           << ", lower_l: " << summary.first_invalid_lower
+           << ", upper_l: " << summary.first_invalid_upper;
   }
 }
 
@@ -289,44 +289,44 @@ bool LaneFollowPath::DecidePathBounds(std::vector<PathBoundary>* boundary) {
   }
 
   if (init_l < lower_l) {
-    AWARN << "[S_CURVE_DEBUG] init_l slightly below path lower bound, relax "
-          << "initial path bound. init_l: " << init_l
-          << ", lower_l: " << lower_l << ", upper_l: " << upper_l
-          << ", exceed_distance: " << lower_exceed_distance
-          << ", relax_num: " << relax_num;
+    ADEBUG << "[S_CURVE_DEBUG] init_l slightly below path lower bound, relax "
+           << "initial path bound. init_l: " << init_l
+           << ", lower_l: " << lower_l << ", upper_l: " << upper_l
+           << ", exceed_distance: " << lower_exceed_distance
+           << ", relax_num: " << relax_num;
 
     for (size_t i = 0; i < relax_num; ++i) {
       path_bound[i].l_lower.l =
           std::min(path_bound[i].l_lower.l, init_l - kInitLBoundaryExtraMargin);
     }
   } else if (init_l > upper_l) {
-    AWARN << "[S_CURVE_DEBUG] init_l slightly above path upper bound, relax "
-          << "initial path bound. init_l: " << init_l
-          << ", lower_l: " << lower_l << ", upper_l: " << upper_l
-          << ", exceed_distance: " << upper_exceed_distance
-          << ", relax_num: " << relax_num;
+    ADEBUG << "[S_CURVE_DEBUG] init_l slightly above path upper bound, relax "
+           << "initial path bound. init_l: " << init_l
+           << ", lower_l: " << lower_l << ", upper_l: " << upper_l
+           << ", exceed_distance: " << upper_exceed_distance
+           << ", relax_num: " << relax_num;
 
     for (size_t i = 0; i < relax_num; ++i) {
       path_bound[i].l_upper.l =
           std::max(path_bound[i].l_upper.l, init_l + kInitLBoundaryExtraMargin);
     }
   } else if (upper_margin < kInitLBoundaryMinMargin) {
-    AWARN << "[S_CURVE_DEBUG] init_l near path upper bound, relax initial "
-          << "path bound. init_l: " << init_l << ", lower_l: " << lower_l
-          << ", upper_l: " << upper_l << ", upper_margin: " << upper_margin
-          << ", lower_margin: " << lower_margin
-          << ", relax_num: " << relax_num;
+    ADEBUG << "[S_CURVE_DEBUG] init_l near path upper bound, relax initial "
+           << "path bound. init_l: " << init_l << ", lower_l: " << lower_l
+           << ", upper_l: " << upper_l << ", upper_margin: " << upper_margin
+           << ", lower_margin: " << lower_margin
+           << ", relax_num: " << relax_num;
 
     for (size_t i = 0; i < relax_num; ++i) {
       path_bound[i].l_upper.l =
           std::max(path_bound[i].l_upper.l, init_l + kInitLBoundaryMinMargin);
     }
   } else if (lower_margin < kInitLBoundaryMinMargin) {
-    AWARN << "[S_CURVE_DEBUG] init_l near path lower bound, relax initial "
-          << "path bound. init_l: " << init_l << ", lower_l: " << lower_l
-          << ", upper_l: " << upper_l << ", upper_margin: " << upper_margin
-          << ", lower_margin: " << lower_margin
-          << ", relax_num: " << relax_num;
+    ADEBUG << "[S_CURVE_DEBUG] init_l near path lower bound, relax initial "
+           << "path bound. init_l: " << init_l << ", lower_l: " << lower_l
+           << ", upper_l: " << upper_l << ", upper_margin: " << upper_margin
+           << ", lower_margin: " << lower_margin
+           << ", relax_num: " << relax_num;
 
     for (size_t i = 0; i < relax_num; ++i) {
       path_bound[i].l_lower.l =
